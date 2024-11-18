@@ -1,0 +1,35 @@
+# Variables that will be reused in the pipeline
+variables:
+  DEPLOY_IP: "192.168.70.6"
+  DEPLOY_USER: "gitlab-deployment"
+  OUTPUT_DIR: go-bin  # Directory to store the compiled binary
+  OUTPUT_NAME_AMD64: $OUTPUT_DIR/example-binary_amd64_${CI_COMMIT_REF_SLUG}
+  OUTPUT_NAME_ARM64: $OUTPUT_DIR/example-binary_arm64_${CI_COMMIT_REF_SLUG}
+
+
+# Pipeline stages
+stages:
+  - compile
+  - deploy
+
+
+### CI Pipeline Parts
+include:
+  - local: .gitlab-compile.yml
+
+
+### Deploy Job
+deploy:
+  stage: deploy
+  image: alpine:latest
+  before_script:
+    # Update the package index, install the OpenSSH client for SSH connections
+    - apk update && apk add openssh-client
+    # If the private SSH key file ($ID_RSA) exists, set secure permissions (read/write for the owner only)
+    - if [ -f "$ID_RSA" ]; then chmod og= $ID_RSA; fi
+  script:
+    # Copy the binary to the target Linux server
+    - scp -i $ID_RSA -o StrictHostKeyChecking=no $OUTPUT_NAME_ARM64 $DEPLOY_USER@$DEPLOY_IP:/go-binary
+    - scp -i $ID_RSA -o StrictHostKeyChecking=no $OUTPUT_NAME_AMD64 $DEPLOY_USER@$DEPLOY_IP:/go-binary
+  only:
+    - main

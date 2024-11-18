@@ -1,0 +1,56 @@
+### Compile for arm64
+compile-arm64:
+  image: multiarch/crossbuild
+  stage: compile
+  variables:
+    GOARCH: arm64 # Exported environment variables within the job's execution environment
+    GOOS: linux # Exported environment variables within the job's execution environment
+  before_script:
+    # Install Go
+    - apt-get update && apt-get install -y wget
+    - wget https://go.dev/dl/go1.23.3.linux-amd64.tar.gz
+    - tar -C /usr/local -xzf go1.23.3.linux-amd64.tar.gz
+    - export PATH=$PATH:/usr/local/go/bin
+
+    # Create directory for the compiled binary
+    - mkdir -p $OUTPUT_DIR
+
+    # Initialize a Go module if it doesn't already exist
+    - go mod init example-project || true
+    # Download dependencies
+    - go mod tidy
+  script:
+    # Compile the Go binary for arm64
+    - go build -o $OUTPUT_NAME_ARM64 ./main.go
+    # List the binary
+    - ls -la $OUTPUT_DIR
+  artifacts:
+    paths:
+      # Save the binary as an artifact
+      - $OUTPUT_NAME_ARM64
+  only:
+    - main
+
+
+### Compile for amd64
+compile-amd64:
+  image: golang:latest
+  stage: compile
+  before_script:  # Initialize the Go module environment
+    # Create directory for the compiled binary
+    - mkdir -p $OUTPUT_DIR
+    # Initialize a Go module if it doesn't already exist
+    - go mod init example-project || true
+    # Download dependencies (even if there are none, it's safe to run)
+    - go mod tidy
+  script:  # Compile the Go binary and store it in the specified output directory
+    # Compile the Go binary for amd64 (default architecture)
+    - go build -o $OUTPUT_NAME_AMD64 ./main.go
+    # List the binary
+    - ls -la $OUTPUT_DIR
+  artifacts:
+    paths:
+      # Save the binary as an artifact
+      - $OUTPUT_NAME_AMD64
+  only:
+    - main
